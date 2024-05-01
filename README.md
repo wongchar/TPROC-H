@@ -342,7 +342,7 @@ docker build -t tpch .
 
 Run the container in interactive mode:
 ```
-docker run -it --rm tpcc bash
+docker run -it --rm tpch bash
 ```
 
 Set the environment variables and build the initial database: \
