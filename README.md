@@ -392,8 +392,10 @@ cp -r /mnt/golddb /mnt2/db32
 
 Next, use script-gen.sh found under mysql/scripts in this repository to create your yaml file. \
 Be sure to update the physical function name, the first three numbers of the address and CPU/Memory limits and request before running. \
+Be sure to balance pods across drives \
 ```
 ./script-gen.sh mnt1 1 4 > mnt1.yaml
+./script-gen.sh mnt2 5 8 > mnt2.yaml
 ...
 ```
 
@@ -401,6 +403,10 @@ Launch the pods and wait for them to reach a running state (should take less tha
 ```
 kubectl apply -f mnt1.yaml
 ...
+```
+Pods are assigned CPUs in numerical order (and smt-thread). Check CPU assignment here (do not modify this file, file is dynamic):
+```
+sudo cat /var/lib/kubelet/cpu_manager_state
 ```
 
 If pods fail to initialize due to MySQL, delete the pods and apply the following:
