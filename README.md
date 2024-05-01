@@ -67,10 +67,6 @@ lsblk
 - - - -
 
 ## Install Kubernetes with ContainerD ##
-Version at time of writing:
-- Ubuntu 22.04
-- Kubernetes v1.26.0
-- ContainerD v1.6.15
 
 Load br_netfilter module
 ```console
@@ -116,7 +112,6 @@ Set cgroupDriver to systemd in configuration file
 sudo vi /etc/containerd/config.toml
 ```
 
-Search using the following command: /SystemdCgroup \
 Change **SystemdCgroup = false** to **SystemdCgroup = true** \
 Ensure your section matches the following:
 
@@ -142,22 +137,17 @@ sudo systemctl restart containerd
 
 Install Kubernetes
 ```
-curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
-echo "deb https://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee /etc/apt/sources.list.d/kubernetes.list
-
-OR
-
 echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.28/deb/ /" | sudo tee /etc/apt/sources.list.d/kubernetes.list
 curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.28/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
-
 
 sudo apt update -y
 sudo apt install -y kubelet kubeadm kubectl
 ```
 
-Add hostnames and IP address of ALL nodes that will be on the cluster to **/etc/hosts** file for all nodes
+Add hostnames and IP address of ALL nodes that will be on the cluster to **/etc/hosts** file for all nodes \
+(Skip this step for Single-Node Cluster)
 ```
-vi /etc/hosts
+sudo vi /etc/hosts
 ```
 
 An example of a host file for a 2-node cluster below:
@@ -177,7 +167,7 @@ ff02::2 ip6-allrouters
 
 Disable swap on every node
 ```
-sudo swapoff –a
+sudo swapoff --a
 sudo sed -i '/ swap / s/^\(.*\)$/#\1/g' /etc/fstab
 ```
 
@@ -195,8 +185,8 @@ sudo chown $(id -u):$(id -g) $HOME/.kube/config
 
 Set up CNI using Calico
 ```
-kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.25.0/manifests/tigera-operator.yaml
-kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.25.0/manifests/custom-resources.yaml
+kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.27.3/manifests/tigera-operator.yaml
+kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.27.3/manifests/custom-resources.yaml
 ```
 
 Verify all pods are running
@@ -224,7 +214,8 @@ kube-system        kube-scheduler-titanite-d4c2-os            1/1     Running   
 tigera-operator    tigera-operator-54b47459dd-fq8kk           1/1     Running   0          67s
 ```
 
-OPTION: If you want to schedule pods on the control-plane, use the following command
+OPTION: If you want to schedule pods on the control-plane, use the following command \ 
+Run this step if you are using a single node
 ```
 kubectl taint nodes --all node-role.kubernetes.io/control-plane-
 ```
@@ -238,26 +229,50 @@ sudo kubeadm join 10.216.177.81:6443 --token pxskra.4lurssigp18i3h4v \
 
 - - - -
 
-## Install Docker CE on Load Generator ##
+## Install Docker CE on Client/Load Generator ##
 https://docs.docker.com/engine/install/ubuntu/
 - - - -
+
+```
+# Add Docker's official GPG key:
+sudo apt-get update
+sudo apt-get install ca-certificates curl
+sudo install -m 0755 -d /etc/apt/keyrings
+sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+sudo chmod a+r /etc/apt/keyrings/docker.asc
+
+# Add the repository to Apt sources:
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
+  $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+sudo apt-get update
+
+sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+```
+
+Run Docker as non-root:
+```
+sudo groupadd docker
+sudo usermod -aG docker $USER
+```
+Restart terminal session for changes to apply
 
 ## Setup HammerDB TPROC-C MySQL Database for SUT ##
 
 Set Static CPU Management Policy and Static NUMA-aware Memory Manager
 ```
-sudo vi /etc/systemd/system/kubelet.service.d/10-kubeadm.conf
+sudo vi /usr/lib/systemd/system/kubelet.service.d/10-kubeadm.conf
 ```
 
 Modify the file by adding the following flags:
 ```
-ExecStart=/usr/bin/kubelet --cpu-manager-policy=static --reserved-cpus=0-7 --memory-manager-policy=Static --reserved-memory='0:memory=100Mi' $KUBELET_KUBECONFIG_ARGS $KUBELET_CONFIG_ARGS $KUBELET_KUBEADM_ARGS $KUBELET_EXTRA_ARGS
+ExecStart=/usr/bin/kubelet --cpu-manager-policy=static --reserved-cpus=0-7,256-263 $KUBELET_KUBECONFIG_ARGS $KUBELET_CONFIG_ARGS $KUBELET_KUBEADM_ARGS $KUBELET_EXTRA_ARGS
 ```
 
 Perform the following to enable the Static policies:
 ```
 sudo rm -rf /var/lib/kubelet/cpu_manager_state
-sudo rm -rf /var/lib/kubelet/memory_manager_state
 sudo systemctl daemon-reload
 sudo systemctl restart kubelet
 ```
@@ -270,7 +285,8 @@ kubectl apply -f multus-cni/deployments/multus-daemonset.yml
 \
 Copy the conf.d folder of this repository to your drive mount point for each NUMA
 ```
-cp -r mysql/conf.d /mnt
+cp -r mysql/conf.d /mnt1
+...
 ```
 
 Update the required memory for the MySQL database in conf.d/my.cnf file here (currently set at 20G):
@@ -294,15 +310,16 @@ Ensure the yaml file reflects the name of your mount paths (do not change volume
       volumes:
         - name: tpc-db1-conf
           hostPath:
-            path: /mnt/conf.d
+            path: /mnt1/conf.d
         - name: tpc-db1-vol
           hostPath:
-            path: /mnt/db1
+            path: /mnt1/db1
 ```
 Launch the pod that will run a MySQL container listening at the specified address at port 3306:
 ```
 kubectl apply -f tpc-db.yaml
 ```
+MySQL pod will restart in about 10 seconds in order to populate filesystem. This is normal.
 
 ## Setup HammerDB TPROC for Load Generator ##
 
@@ -319,8 +336,8 @@ docker build -t hammerdb .
 
 Copy the tpcc directory of this repository to the load generator. Create the load generator image:
 ```
-cd tpcc/
-doker build -t tpcc .
+cd tpch/
+docker build -t tpch .
 ```
 
 Run the container in interactive mode:
@@ -329,20 +346,28 @@ docker run -it --rm tpcc bash
 ```
 
 Set the environment variables and build the initial database: \
-Warehouse and Virtual User variables need to be set to create desired database size. \
-See more here: https://www.hammerdb.com/blog/uncategorized/how-many-warehouses-for-the-hammerdb-tpc-c-test/
+
 ```
-root@c10b1e311091:/home/hammerdb/HammerDB-4.5# export DBHOST=192.78.1.101    
+root@c10b1e311091:/home/hammerdb/HammerDB-4.5# export DBHOST=192.168.1.101    
 root@c10b1e311091:/home/hammerdb/HammerDB-4.5# export DBPORT=3306         
 root@c10b1e311091:/home/hammerdb/HammerDB-4.5# export MYSQL_USER=root 
 root@c10b1e311091:/home/hammerdb/HammerDB-4.5# export MYSQL_PASSWORD=password 
-root@c10b1e311091:/home/hammerdb/HammerDB-4.5# export WH=400 
-root@c10b1e311091:/home/hammerdb/HammerDB-4.5# export VU=64 
+root@c10b1e311091:/home/hammerdb/HammerDB-4.5# export SF=30 
+root@c10b1e311091:/home/hammerdb/HammerDB-4.5# export TH=4
+root@c10b1e311091:/home/hammerdb/HammerDB-4.5# export VU=4
 root@c10b1e311091:/home/hammerdb/HammerDB-4.5# ./hammerdbcli
 hammerdb> source build.tcl
 ```
+It will take approx 3 hours to build the database and will be ~74GB
 
-## Scaling the TPC-C Benchmark ##
+## Scaling the TPC-H Benchmark ##
+Increase IO:
+```
+sudo sysctl -w fs.aio-max-nr=1048576
+sudo sysctl -w fs.file-max=6815744
+sudo sysctl --system
+```
+
 Once the output shows that the database build is complete, exit the container on the load generator and delete the pod on the SUT. \
 The database that will be used will be saved at your specified mount point. You can check the size using the following:
 ```
@@ -368,12 +393,14 @@ cp -r /mnt/golddb /mnt2/db32
 Next, use script-gen.sh found under mysql/scripts in this repository to create your yaml file. \
 Be sure to update the physical function name, the first three numbers of the address and CPU/Memory limits and request before running. \
 ```
-./script-gen.sh mnt 16 > numa0.yaml
+./script-gen.sh mnt1 1 4 > mnt1.yaml
+...
 ```
 
 Launch the pods and wait for them to reach a running state (should take less than a minute):
 ```
-kubectl apply -f numa0.yaml
+kubectl apply -f mnt1.yaml
+...
 ```
 
 If pods fail to initialize due to MySQL, delete the pods and apply the following:
@@ -384,26 +411,75 @@ sudo sysctl --system
 ```
 Relaunch the pods. \
 \
-On the load generator, copy the docker-compose.yml file under the tpcc directory to the system. \
-Update the number of hammerdb container images, the respective DBHOST, and the desired number of warehouses and virtual users for all containers.
+On the load generator, modify run.sh file to reflect all your IPs
 ```
-docker-compose up > output.log
+#!/bin/bash
+
+if test "$#" -ne 2; then
+        echo "$0 pwr|tp vmX"
+fi
+
+IMG=tpch:latest
+DBPORT=3306
+SF=30
+TH=4
+
+CMD=/home/hammerdb/HammerDB-4.5/$1_run
+
+vm1_HOST=192.78.1.1
+vm2_HOST=192.78.1.2
+vm3_HOST=192.78.1.3
+vm4_HOST=192.78.1.4
+vm5_HOST=192.78.1.5
+vm6_HOST=192.78.1.6
+vm7_HOST=192.78.1.7
+vm8_HOST=192.78.1.8
+vm9_HOST=192.78.1.9
+vm10_HOST=192.78.1.10
+vm11_HOST=192.78.1.11
+vm12_HOST=192.78.1.12
+vm13_HOST=192.78.1.13
+vm14_HOST=192.78.1.14
+vm15_HOST=192.78.1.15
+vm16_HOST=192.78.1.16
+vm17_HOST=192.78.1.17
+vm18_HOST=192.78.1.18
+vm19_HOST=192.78.1.19
+vm20_HOST=192.78.1.20
+vm21_HOST=192.78.1.21
+vm22_HOST=192.78.1.22
+vm23_HOST=192.78.1.23
+vm24_HOST=192.78.1.24
+vm25_HOST=192.78.1.25
+vm26_HOST=192.78.1.26
+vm27_HOST=192.78.1.27
+vm28_HOST=192.78.1.28
+vm29_HOST=192.78.1.29
+vm30_HOST=192.78.1.30
+vm31_HOST=192.78.1.31
+
+NAME=tpch-$2
+declare -n DBHOST
+DBHOST=$2_HOST
+
+OPTS="-e MYSQL_USER=root -e MYSQL_PASSWORD=password -e DBHOST=${DBHOST} -e DBPORT=${DBPORT} -e SF=${SF} -e TH=${TH}"
+LOG=$2.txt
+
+docker run --name ${NAME} --rm ${OPTS} ${IMG} ${CMD} > ${LOG} &
 ```
+
+Modify bm.sh to run the desired number of instances \
 
 Once the test is complete, use the following command to obtain results:
 ```
-grep NOPM output.log
+grep Completed vm1.txt
+...
 ```
+Use the slowest time to calculate QPH \
+NOTE: use capital C in 'grep Completed vm1.txt'. Do not use 'grep completed vm1.txt'
 \
 \
-For additional performance, set the CPU Scaling Governor to Max Performance:
-```
-echo "performance" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
-```
-Confirm if changes took effect:
-```
-cat /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
-``` 
+
 
  
 Remove Kubernetes and ContainerD:
