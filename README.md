@@ -323,10 +323,7 @@ MySQL pod will restart in about 10 seconds in order to populate filesystem. This
 
 ## Setup HammerDB TPROC for Load Generator ##
 
-Clone the HammerDB repository
-```console
-git clone https://github.com/TPC-Council/HammerDB.git
-```
+Unzip the HammerDB repository from tar file \
 
 Build the HammerDB Docker Image:
 ```
