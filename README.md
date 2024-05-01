@@ -475,6 +475,10 @@ docker run --name ${NAME} --rm ${OPTS} ${IMG} ${CMD} > ${LOG} &
 ```
 
 Modify bm.sh to run the desired number of instances \
+Run the test:
+```
+bash ./bm.sh tp
+```
 
 Once the test is complete, use the following command to obtain results:
 ```
