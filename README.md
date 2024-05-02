@@ -331,9 +331,14 @@ cd HammerDB/Docker
 docker build -t hammerdb .
 ```
 
+Change access permission mode on tp_run
+```
+cd TPROC-H/tpch-loadgen
+chmod +x tp_run
+```
+
 Copy the tpcc directory of this repository to the load generator. Create the load generator image:
 ```
-cd tpch/
 docker build -t tpch .
 ```
 
