@@ -362,20 +362,21 @@ hammerdb> source build.tcl
 ```
 It will take approx 3 hours to build the database and will be ~74GB
 
-## Scaling the TPC-H Benchmark ##
-Increase IO:
-```
-sudo sysctl -w fs.aio-max-nr=1048576
-sudo sysctl -w fs.file-max=6815744
-sudo sysctl --system
-```
-
 Once the output shows that the database build is complete, exit the container on the load generator and delete the pod on the SUT. \
 The database that will be used will be saved at your specified mount point. You can check the size using the following:
 ```
 cd /mnt
 sudo du -h
 ```
+
+## Scaling the TPC-H Benchmark ##
+Increase IO on the SUT:
+```
+sudo sysctl -w fs.aio-max-nr=1048576
+sudo sysctl -w fs.file-max=6815744
+sudo sysctl --system
+```
+
 
 Copy the database as your gold database for reuse so you do not have to rebuild the database:
 ```
@@ -387,9 +388,9 @@ Copy the gold database to the number of instances you are trying to scale to. Ke
 cp -r /mnt/golddb /mnt/db2
 ...
 cp -r /mnt/golddb /mnt/db16
-cp -r /mnt/golddb /mnt2/db17
+cp -r /mnt/golddb /mnt5/db17
 ...
-cp -r /mnt/golddb /mnt2/db32
+cp -r /mnt/golddb /mnt9/db32
 ```
 
 Next, use script-gen.sh found under mysql/scripts in this repository to create your yaml file. \
@@ -490,7 +491,23 @@ grep Completed vm1.txt
 Use the slowest time to calculate QPH \
 NOTE: use capital C in 'grep Completed vm1.txt'. Do not use 'grep completed vm1.txt'
 \
-\
+
+On the SUT, delete the pods
+```
+kubectl delete -f mnt1.yaml
+kubectl delete -f mnt2.yaml
+...
+...
+```
+
+On the SUT, delete the databases
+```
+sudo rm -rf /mnt1/db*
+sudo rm -rf /mnt2/db*
+...
+```
+
+Recreate databases and redeploy pods as needed.
 
 
  
