@@ -418,6 +418,7 @@ sudo sysctl -w fs.aio-max-nr=1048576
 sudo sysctl -w fs.file-max=6815744
 sudo sysctl --system
 ```
+NOTE!: Pods are unable to be scheduled on the very last CPU of the system (Set as reserved cpu for Best Effort QoS Pods)
 Relaunch the pods. \
 \
 On the load generator, modify run.sh file to reflect all your IPs
