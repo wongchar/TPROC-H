@@ -492,6 +492,16 @@ Use the slowest time to calculate QPH \
 NOTE: use capital C in 'grep Completed vm1.txt'. Do not use 'grep completed vm1.txt'
 \
 
+Script to extract last VU Completed time for all vm text files:
+```
+#!/bin/bash
+
+for ((I=1; I<=4; I++))
+do
+  grep Completed vm${I}.txt | tail -n 1 | awk '{print$(NF-1)}'
+done
+```
+
 On the SUT, delete the pods
 ```
 kubectl delete -f mnt1.yaml
