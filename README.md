@@ -375,6 +375,8 @@ Increase IO on the SUT:
 sudo sysctl -w fs.aio-max-nr=1048576
 sudo sysctl -w fs.file-max=6815744
 sudo sysctl --system
+
+add lines to /etc/sysctl.conf
 ```
 
 
