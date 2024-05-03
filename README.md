@@ -377,6 +377,8 @@ sudo sysctl -w fs.file-max=6815744
 sudo sysctl --system
 
 add lines to /etc/sysctl.conf
+fs.aio-max-nr=1048576
+fs.file-max=6815744
 ```
 
 
