@@ -532,6 +532,7 @@ sudo kubeadm reset
 sudo apt-get purge kubeadm kubectl kubelet kubernetes-cni
 sudo rm -rf /etc/cni/net.d
 sudo rm -rf ~/.kube
+sudo ctr -n k8s.io i rm $(sudo ctr -n k8s.io i ls -q)
 sudo apt-get purge containerd.io
 sudo apt-get autoremove
 ```
